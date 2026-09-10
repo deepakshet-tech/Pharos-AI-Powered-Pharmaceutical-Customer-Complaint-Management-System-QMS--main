@@ -1,5 +1,6 @@
 import email
 import io
+from email import policy
 
 from pypdf import PdfReader
 
@@ -21,14 +22,19 @@ def parse_upload(filename: str, content: bytes) -> str:
         raise ValueError("Legacy .doc files are not supported. Please save the document as .docx and re-upload.")
         
     elif lower.endswith(".eml"):
-        msg = email.message_from_bytes(content)
+        msg = email.message_from_bytes(content, policy=policy.default)
         parts = []
         for part in msg.walk():
-            if part.get_content_type() == "text/plain":
-                payload = part.get_payload(decode=True)
+            if part.get_content_type() == "text/plain" and not part.get_filename():
+                try:
+                    payload = part.get_content()
+                except (LookupError, TypeError):
+                    payload = part.get_payload(decode=True)
+                    if isinstance(payload, bytes):
+                        payload = payload.decode(part.get_content_charset() or "utf-8", errors="ignore")
                 if payload:
-                    parts.append(payload.decode(part.get_content_charset() or "utf-8", errors="ignore"))
-        text = "\n".join(parts) or str(msg.get_payload())
+                    parts.append(str(payload))
+        text = "\n".join(parts)
         
     elif lower.endswith((".txt", ".md", ".csv")):
         text = content.decode("utf-8", errors="ignore")
@@ -37,6 +43,9 @@ def parse_upload(filename: str, content: bytes) -> str:
         raise ValueError("Unsupported file type. Please upload PDF, DOCX, EML, or TXT — or paste the text directly.")
         
     if not text.strip():
-        raise ValueError("No readable text found in the document.")
+        raise ValueError(
+            "No readable text found. The file may be empty or an image-only PDF; "
+            "try a text-based PDF, DOCX, EML, or TXT file."
+        )
         
     return text

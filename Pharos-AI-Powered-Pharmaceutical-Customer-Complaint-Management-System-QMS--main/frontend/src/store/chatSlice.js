@@ -35,7 +35,7 @@ const slice = createSlice({
     setExecutingNode(s, a) { s.executingNode = a.payload },
     handleError(s, a) {
       s.error = a.payload
-      s.messages.push({ role: 'assistant', content: `⚠️ Error: ${a.payload}. Check your Groq API key and backend server.`, action: 'error' })
+      s.messages.push({ role: 'assistant', content: `Error: ${a.payload}`, action: 'error' })
     },
     handleResult(s, a) {
       const d = a.payload
